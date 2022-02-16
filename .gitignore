@@ -1,0 +1,5 @@
+*.blif
+*.bin
+*.txt
+*.ghw
+*.cf
