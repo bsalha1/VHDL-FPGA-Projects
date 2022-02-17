@@ -17,7 +17,6 @@ end uart_ice40;
 architecture uart_ice40_arch of uart_ice40 is
 
     signal uart_rx_byte : std_logic_vector(7 downto 0) := (others => '0');
-    signal uart_rx_dv : std_logic := '0';
     signal number : unsigned(15 downto 0) := (others => '0');
     signal seven_seg_clk : std_logic;
 
@@ -25,7 +24,6 @@ architecture uart_ice40_arch of uart_ice40 is
         port(
             clk : in std_logic;
             rx : in std_logic;
-            rx_dv : out std_logic;
             rx_byte : out std_logic_vector(7 downto 0)
         );
     end component;
@@ -56,8 +54,7 @@ begin
     uart_instance : uart_rx port map (
         clk => clk,
         rx => uart1_rx,
-        rx_byte => uart_rx_byte,
-        rx_dv => uart_rx_dv
+        rx_byte => uart_rx_byte
     );
 
     seven_seg_instance : seven_seg port map (
@@ -68,7 +65,6 @@ begin
     );
 
     gpio <= uart_rx_byte;
-
     number <= unsigned(resize(unsigned(uart_rx_byte), 16));
     
 end uart_ice40_arch;
