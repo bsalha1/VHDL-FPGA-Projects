@@ -1,0 +1,27 @@
+# Pin mappings for ICE40HX8KCR132
+
+set_io --warn-no-port led1 	A5
+set_io --warn-no-port led2 	M4
+set_io --warn-no-port switch2 D7
+set_io --warn-no-port switch1 D10
+set_io --warn-no-port uart1_tx C14
+set_io --warn-no-port uart1_rx A12
+set_io --warn-no-port gpio[7] J1
+set_io --warn-no-port gpio[6] H1
+set_io --warn-no-port gpio[5] G1
+set_io --warn-no-port gpio[4] E1
+set_io --warn-no-port gpio[3] C3
+set_io --warn-no-port gpio[2] A1
+set_io --warn-no-port gpio[1] A3
+set_io --warn-no-port gpio[0] A4
+set_io --warn-no-port seven_seg_leds[0] H3
+set_io --warn-no-port seven_seg_leds[1] G3
+set_io --warn-no-port seven_seg_leds[2] F3
+set_io --warn-no-port seven_seg_leds[3] D1
+set_io --warn-no-port seven_seg_leds[4] B1
+set_io --warn-no-port seven_seg_leds[5] A2
+set_io --warn-no-port seven_seg_leds[6] C4
+set_io --warn-no-port seven_seg_leds[7] C5
+set_io --warn-no-port seven_seg_sel[0] L1
+set_io --warn-no-port seven_seg_sel[1] N1
+set_io --warn-no-port clk  	P7
