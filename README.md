@@ -18,9 +18,14 @@ This type of building took me quite a long time to figure out since ICE does not
 
 **Icestorm**: formatting the program to load onto the ICE40 FPGA
 
-
 ```
 sudo apt install build-essential clang bison flex libreadline-dev gawk tcl-dev libffi-dev git mercurial graphviz xdot pkg-config python python3 libftdi-dev qt5-default python3-dev libboost-dev
+```
+
+For debugging the simulation:
+
+```
+sudo apt install gtkwave
 ```
 
 ```
@@ -30,7 +35,6 @@ git clone https://github.com/cliffordwolf/icestorm.git icestorm
 git clone https://github.com/ghdl/ghdl ghdl
 git clone https://github.com/ghdl/ghdl-yosys-plugin ghdl-yosys-plugin
 ```
-
 
 ```
 cd yosys

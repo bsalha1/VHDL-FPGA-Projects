@@ -31,7 +31,7 @@ sim:
 	
 # Push ice40 binary to FPGA connected via USB to NODE
 flash:
-	sudo python3 icefunprog.py $(NODE) $(PROJ).bin
+	sudo python3 ../icefunprog.py $(NODE) $(PROJ).bin
 
 clean:
 	rm *.bin *blif *.txt
