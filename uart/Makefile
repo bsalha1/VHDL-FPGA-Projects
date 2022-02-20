@@ -2,7 +2,7 @@
 
 # Project setup
 PROJ = uart
-FILES = uart_ice40.vhdl clock_divider.vhdl uart_rx.vhdl seven_seg.vhdl
+FILES = uart_ice40.vhdl clock_divider.vhdl uart_rx.vhdl uart_tx.vhdl seven_seg.vhdl
 ENTITY = uart_ice40
 TESTBENCH_FILE = uart_tb.vhdl
 TESTBENCH_ENTITY = uart_ice40_tb

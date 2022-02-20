@@ -17,14 +17,29 @@ end uart_ice40;
 architecture uart_ice40_arch of uart_ice40 is
 
     signal uart_rx_byte : std_logic_vector(7 downto 0) := (others => '0');
+    signal uart_tx_byte : std_logic_vector(7 downto 0) := (others => '0');
     signal number : unsigned(15 downto 0) := (others => '0');
     signal seven_seg_clk : std_logic;
+    signal is_packet_rxed : std_logic;
+    signal request_tx : std_logic := '0';
+    signal tx_done : std_logic;
 
     component uart_rx is 
         port(
             clk : in std_logic;
             rx : in std_logic;
-            rx_byte : out std_logic_vector(7 downto 0)
+            rx_byte : out std_logic_vector(7 downto 0);
+            is_packet_rxed : out std_logic
+        );
+    end component;
+
+    component uart_tx is 
+        port(
+            clk : in std_logic;
+            tx : out std_logic;
+            tx_byte : in std_logic_vector(7 downto 0);
+            tx_done : out std_logic;
+            request_tx : in std_logic
         );
     end component;
 
@@ -46,17 +61,30 @@ architecture uart_ice40_arch of uart_ice40 is
 
 begin
     
+    -- UART RX
+    uart_rx_instance : uart_rx port map (
+        clk => clk,
+        rx => uart1_rx,
+        rx_byte => uart_rx_byte,
+        is_packet_rxed => is_packet_rxed
+    );
+
+    -- UART TX
+    uart_tx_instance : uart_tx port map (
+        clk => clk,
+        tx => uart1_tx,
+        tx_byte => uart_tx_byte,
+        tx_done => tx_done,
+        request_tx => request_tx
+    );
+
+    -- 240 Hz clock for seven-segment display
     clock_divider_instance : clock_divider port map(
         clk => clk,
         clk_divided => seven_seg_clk
     );
 
-    uart_instance : uart_rx port map (
-        clk => clk,
-        rx => uart1_rx,
-        rx_byte => uart_rx_byte
-    );
-
+    -- Seven-segment display driver 
     seven_seg_instance : seven_seg port map (
         clk => seven_seg_clk,
         number => number,
@@ -64,7 +92,18 @@ begin
         seven_seg_leds => seven_seg_leds
     );
 
-    gpio <= uart_rx_byte;
+    p_uart_echo : process (is_packet_rxed)
+    begin
+        if is_packet_rxed = '1' then
+            uart_tx_byte <= uart_rx_byte;
+            request_tx <= '1';
+        else
+            uart_tx_byte <= (others => '0');
+            request_tx <= '0';
+        end if;
+    end process;
+    
+    -- Output RX'ed packet byte to seven-seg display
     number <= unsigned(resize(unsigned(uart_rx_byte), 16));
     
 end uart_ice40_arch;
