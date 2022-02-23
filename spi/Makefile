@@ -1,12 +1,12 @@
 # Makefile for ICE40 FPGA 
 
 # Project setup
-PROJ = switch
-FILES = switch.vhdl
-ENTITY = switches
-TESTBENCH_FILE = switch_tb.vhdl
-TESTBENCH_ENTITY = switches_tb
-
+PROJ = spi
+FILES = spi_ice40.vhdl spi.vhdl
+ENTITY = spi_ice40
+TESTBENCH_FILE = spi_tb.vhdl
+TESTBENCH_ENTITY = spi_tb
+FLAGS = --std=08
 # Driver setup
 NODE = /dev/ttyACM0
 
@@ -23,9 +23,9 @@ all:
 
 # Simulate the code using given testbench and view waveform
 sim:
-	ghdl -a $(TESTBENCH_FILE) $(FILES)
-	ghdl -e $(TESTBENCH_ENTITY)
-	ghdl -r $(TESTBENCH_ENTITY) --wave=wave.ghw --stop-time=1us
+	ghdl -a $(FLAGS) $(TESTBENCH_FILE) $(FILES)
+	ghdl -e $(FLAGS) $(TESTBENCH_ENTITY)
+	ghdl -r $(FLAGS) $(TESTBENCH_ENTITY) --wave=wave.ghw --stop-time=5ms
 	gtkwave wave.ghw
 	
 # Push ice40 binary to FPGA connected via USB to NODE

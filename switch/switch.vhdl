@@ -1,17 +1,17 @@
 library ieee;
 use ieee.std_logic_1164.all;
 
-entity Switches_LEDS is 
+entity switches is 
     port (
         switch1 : in std_logic;
         switch2 : in std_logic;
         led1 : out std_logic;
         led2 : out std_logic
     );
-end Switches_LEDS;
+end switches;
 
-architecture Behavioral of Switches_LEDS is
+architecture switches_arch of switches is
 begin
     led1 <= switch1;
     led2 <= switch2;
-end Behavioral;
+end switches_arch;

@@ -1,12 +1,12 @@
 library ieee;
 use ieee.std_logic_1164.all;
 
-entity Switches_LEDS_tb is
-end Switches_LEDS_tb;
+entity switches_tb is
+end switches_tb;
 
-architecture Behavior of Switches_LEDS_tb is
+architecture switches_tb_arch of switches_tb is
 
-    component Switches_LEDS
+    component switches
     port(
         switch1 : in std_logic;
         switch2 : in std_logic;
@@ -24,14 +24,14 @@ architecture Behavior of Switches_LEDS_tb is
     signal led2 : std_logic;
 
 begin
-    test_instance: Switches_LEDS port map (
+    switches_instance: switches port map (
         switch1 => switch1, 
         switch2 => switch2, 
         led1 => led1, 
         led2 => led2
     );
 
-    stim_proc: process
+    p_sim: process
     begin
         wait for 100 ns;
 
@@ -54,4 +54,4 @@ begin
 
         wait;
     end process;
-end Behavior;
+end switches_tb_arch;
