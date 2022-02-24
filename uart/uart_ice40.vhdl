@@ -16,10 +16,12 @@ end uart_ice40;
 
 architecture uart_ice40_arch of uart_ice40 is
 
+    signal reset : std_logic := '1';
     signal uart_rx_byte : std_logic_vector(7 downto 0) := (others => '0');
     signal uart_tx_byte : std_logic_vector(7 downto 0) := (others => '0');
     signal number : unsigned(15 downto 0) := (others => '0');
     signal seven_seg_clk : std_logic;
+    signal seven_seg_clk_divisor : natural := 25000;
     signal is_packet_rxed : std_logic;
     signal request_tx : std_logic := '0';
     signal tx_done : std_logic;
@@ -27,8 +29,9 @@ architecture uart_ice40_arch of uart_ice40 is
     component uart_rx is 
         port(
             clk : in std_logic;
-            rx : in std_logic;
-            rx_byte : out std_logic_vector(7 downto 0);
+            reset : in std_logic;
+            rx_in : in std_logic;
+            rx_byte_out : out std_logic_vector(7 downto 0);
             is_packet_rxed : out std_logic
         );
     end component;
@@ -55,7 +58,8 @@ architecture uart_ice40_arch of uart_ice40 is
     component clock_divider is 
     port (
         clk : in std_logic;
-        clk_divided : out std_logic
+        clk_divided : out std_logic;
+        divisor : in natural
     );
     end component;
 
@@ -64,8 +68,9 @@ begin
     -- UART RX
     uart_rx_instance : uart_rx port map (
         clk => clk,
-        rx => uart1_rx,
-        rx_byte => uart_rx_byte,
+        reset => reset,
+        rx_in => uart1_rx,
+        rx_byte_out => uart_rx_byte,
         is_packet_rxed => is_packet_rxed
     );
 
@@ -81,7 +86,8 @@ begin
     -- 240 Hz clock for seven-segment display
     clock_divider_instance : clock_divider port map(
         clk => clk,
-        clk_divided => seven_seg_clk
+        clk_divided => seven_seg_clk,
+        divisor => seven_seg_clk_divisor
     );
 
     -- Seven-segment display driver 
@@ -91,6 +97,13 @@ begin
         seven_seg_sel => seven_seg_sel,
         seven_seg_leds => seven_seg_leds
     );
+
+    p_reset: process(clk)
+    begin
+        if rising_edge(clk) then
+            reset <= '0';
+        end if;
+    end process;
 
     p_uart_echo : process (is_packet_rxed)
     begin

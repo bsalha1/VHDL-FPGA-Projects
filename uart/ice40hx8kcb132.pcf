@@ -24,4 +24,4 @@ set_io --warn-no-port seven_seg_leds[6] C4
 set_io --warn-no-port seven_seg_leds[7] C5
 set_io --warn-no-port seven_seg_sel[0] L1
 set_io --warn-no-port seven_seg_sel[1] N1
-set_io --warn-no-port clk  	P7
+set_io --warn-no-port clk P7

@@ -4,8 +4,8 @@
 PROJ = uart
 FILES = uart_ice40.vhdl clock_divider.vhdl uart_rx.vhdl uart_tx.vhdl seven_seg.vhdl
 ENTITY = uart_ice40
-TESTBENCH_FILE = uart_tb.vhdl
-TESTBENCH_ENTITY = uart_ice40_tb
+TESTBENCH_FILE = uart_rx_tb.vhdl
+TESTBENCH_ENTITY = uart_rx_tb
 FLAGS = -fsynopsys
 
 # Driver setup
@@ -24,9 +24,9 @@ all:
 
 # Simulate the code using given testbench and view waveform
 sim:
-	ghdl -a $(TESTBENCH_FILE) $(FILES)
-	ghdl -e $(TESTBENCH_ENTITY)
-	ghdl -r $(TESTBENCH_ENTITY) --wave=wave.ghw --stop-time=1us
+	ghdl -a $(FLAGS) $(TESTBENCH_FILE) $(FILES)
+	ghdl -e $(FLAGS) $(TESTBENCH_ENTITY)
+	ghdl -r $(FLAGS) $(TESTBENCH_ENTITY) --wave=wave.ghw --stop-time=500us
 	gtkwave wave.ghw
 	
 # Push ice40 binary to FPGA connected via USB to NODE

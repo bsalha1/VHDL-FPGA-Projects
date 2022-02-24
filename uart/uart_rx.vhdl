@@ -2,111 +2,145 @@ library ieee;
 use ieee.std_logic_1164.all;
 
 entity uart_rx is
-    generic (
-        CLKS_PER_BIT : integer :=  105 -- 12 MHz / 115200 Hz = 105
+    generic(
+        CLK_FREQ : natural := 12000000;
+        BAUD_RATE : natural := 112500;
+        RESOLUTION : integer := 8; -- Oversample count i.e. x8, x16, ...
+        TX_SIZE : integer := 8;
+        BAUD_OVERSAMPLER_TICKS : natural := 12000000 / 112500 / 8 -- = CLK_FREQ / BAUD_RATE / RESOLUTION
     );
     port (
         clk : in std_logic;
-        rx : in std_logic;
-        rx_byte : out std_logic_vector(7 downto 0);
+        reset : in std_logic;
+        rx_in : in std_logic;
+        rx_byte_out : out std_logic_vector(TX_SIZE - 1 downto 0);
         is_packet_rxed : out std_logic
     );
 end uart_rx;
 
 architecture uart_rx_arch of uart_rx is
-    type uart_status is (
-        IDLE, START_BIT, DATA, STOP_BIT
-    );
+    type uart_state is (IDLE, START_BIT, DATA, STOP_BIT);
+    signal state : uart_state := IDLE;
 
-    signal status : uart_status := IDLE;
+    signal oversampler_clk : std_logic := '0';
 
-    signal rx_data_ff1 : std_logic := '0';
-    signal rx_data_ff2 : std_logic := '0'; -- Double flops "rx" from low freq UART domain to high freq FPGA domain
+    signal rx_byte : std_logic_vector(TX_SIZE - 1 downto 0) := (others => '0');
 
-    signal clk_count : integer range 0 to CLKS_PER_BIT - 1 := 0; -- The current progress of the bit being RX'd
-    signal bit_index : integer range 0 to 7 := 0;
-
+    component clock_divider is
+        port (
+            clk : in std_logic;
+            divisor : in natural;
+            clk_divided : out std_logic
+        );
+    end component;
+    
 begin
 
-    -- Since UART data is slower than clk, double flop the slow data (rx) to increase resolution time
-    p_sample : process(clk) 
-    begin 
+    -- Generates baud generator (sampler) clock
+    p_oversampler_clk_generator: process(clk)
+        variable oversampler_count: integer range 0 to (BAUD_OVERSAMPLER_TICKS - 1) := (BAUD_OVERSAMPLER_TICKS - 1);
+    begin
         if rising_edge(clk) then
-            rx_data_ff1 <= rx;
-            rx_data_ff2 <= rx_data_ff1;
-        end if;
-    end process;
 
+            if reset = '1' then
+                oversampler_clk <= '0';
+                oversampler_count := (BAUD_OVERSAMPLER_TICKS - 1);
+            elsif oversampler_count = 0 then
+                oversampler_clk <= '1';
+                oversampler_count := (BAUD_OVERSAMPLER_TICKS - 1);
+            else
+                oversampler_clk <= '0';
+                oversampler_count := oversampler_count - 1;
+            end if;
+        end if;
+    end process p_oversampler_clk_generator;
+
+    -- Poll RX line for START bit and then move along state machine
     p_uart_rx : process (clk)
+        variable oversampler_count : integer range 0 to RESOLUTION - 1 := 0;
+        variable bit_index : integer range 0 to TX_SIZE - 1  := 0;
     begin
         if rising_edge(clk) then
             
-            case status is
+            if reset = '1' then
+                state <= IDLE;
+                rx_byte <= (others => '0');
+                rx_byte_out <= (others => '0');
+                oversampler_count := 0;
+                bit_index := 0;
 
-                -- Idle, look for START bit
-                when IDLE =>
-                    clk_count <= 0;
-                    bit_index <= 0;
-                    is_packet_rxed <= '0';
+            elsif oversampler_clk = '1' then
+                case state is
 
-                    -- START bit detected (line pulled low)
-                    if rx_data_ff2 = '0' then
-                        status <= START_BIT;
-                    end if;
+                    -- IDLE: Look for START bit
+                    when IDLE =>
+                        rx_byte <= (others => '0');
+                        oversampler_count := 0;
+                        bit_index := 0;
+                        is_packet_rxed <= '0';
 
-                    
-                -- Start RX
-                when START_BIT =>
-
-                    -- Sample middle of START bit 
-                    if clk_count = (CLKS_PER_BIT - 1) / 2 then
-
-                        -- If still pulled low, prepare for data
-                        if rx_data_ff2 = '0' then
-                            clk_count <= 0;
-                            status <= DATA;
-                        else
-                            status <= IDLE;
+                        -- START bit detected
+                        if rx_in = '0' then
+                            state <= START_BIT;
                         end if;
-                    else
-                        clk_count <= clk_count + 1;
-                    end if;
 
-                -- Data incoming
-                when DATA =>
-                    
-                    -- Wait CLKS_PER_BIT - 1 cycles to get to next RX'd bit
-                    if clk_count < CLKS_PER_BIT - 1 then
-                        clk_count <= clk_count + 1;
-                    else
-                        clk_count <= 0;
-                        rx_byte(bit_index) <= rx_data_ff2;
                         
-                        -- If bits left, increment bit to transfer. Otherwise, this is the STOP bit
-                        if bit_index < 7 then
-                            bit_index <= bit_index + 1;
+                    -- START_BIT: Wait for middle of start bit
+                    when START_BIT =>
+
+                        -- Make sure we are still in START bit
+                        if rx_in = '0' then
+
+                            -- Get to middle of START bit so middle of each subsequent bit can be sampled in the
+                            if oversampler_count = (RESOLUTION - 1) / 2 then
+                                state <= DATA;
+                                oversampler_count := 0;
+                            else
+                                oversampler_count := oversampler_count + 1;
+                            end if;
                         else
-                            bit_index <= 0;
-                            status <= STOP_BIT;
+                            state <= IDLE;
                         end if;
-                    end if;
 
-                -- STOP bit received
-                when STOP_BIT =>
-                
-                    -- Wait CLKS_PER_BIT cycles to get to next RX'd bit
-                    if clk_count < CLKS_PER_BIT - 1 then
-                        clk_count <= clk_count + 1;
-                    else
-                        is_packet_rxed <= '1';
-                        clk_count <= 0;
-                        status <= IDLE;
-                    end if;
 
-                when others =>
-                    status <= IDLE;
+                    -- DATA: Sample middle of each data bit until no data left
+                    when DATA =>
+                        
+                        -- Wait till we are in the middle of the next DATA bit and then latch RX line to rx_byte(bit_index)
+                        if oversampler_count = RESOLUTION - 1 then
+                            
+                            rx_byte(bit_index) <= rx_in;
+                            oversampler_count := 0;
+                            
+                            -- If all data bytes have been read, enter STOP_BIT stage
+                            if bit_index = TX_SIZE - 1 then
+                                state <= STOP_BIT;
+                                bit_index := 0;
+                            else
+                                bit_index := bit_index + 1;
+                            end if;
+                        else
+                            oversampler_count := oversampler_count + 1;
+                        end if;
 
-            end case;
+
+                    -- STOP_BIT: wait for stop bit to be done and then latch RX'ed data to output
+                    when STOP_BIT =>
+                    
+                        if oversampler_count = RESOLUTION - 1 then
+                            rx_byte_out <= rx_byte;
+                            state <= IDLE;
+                            is_packet_rxed <= '1';
+                        else
+                            oversampler_count := oversampler_count + 1;
+                        end if;
+
+
+                    when others =>
+                        state <= IDLE;
+
+                end case;
+            end if;
         end if;
     end process;
 
