@@ -2,8 +2,13 @@ library ieee;
 use ieee.std_logic_1164.all;
 
 entity spi_ice40 is
+    generic(
+        NUM_DATA : natural := 18;
+        TX_SIZE : natural := 10
+    );
     port(
         clk : in std_logic;
+        gpio : out std_logic_vector(7 downto 0);
         spi_cs : out std_logic;
         spi_sdo : out std_logic;
         spi_sdi : in std_logic;
@@ -13,7 +18,7 @@ end spi_ice40;
 
 architecture spi_ice40_arch of spi_ice40 is
 
-    type data_array is array (0 to 17) of std_logic_vector(9 downto 0);
+    type data_array is array (0 to NUM_DATA - 1) of std_logic_vector(9 downto 0);
 
     -- Displays Hello World on my SPI OLED display
     signal tx_data : data_array := (
@@ -31,19 +36,21 @@ architecture spi_ice40_arch of spi_ice40 is
         "1001100100"  -- d
         );
 
-    signal tx_byte : std_logic_vector(9 downto 0) := (others => '0');
-    signal tx_data_index : integer range 0 to 17 := 0;
+    signal tx_byte : std_logic_vector(TX_SIZE - 1 downto 0) := (others => '0');
+    signal tx_data_index : integer range 0 to NUM_DATA - 1 := 0;
     signal tx_en : std_logic := '1';
     signal tx_done : std_logic;
+
+    signal reset : std_logic := '1';
 
     component spi is 
         port (
             clk : in std_logic;
-            cs : out std_logic;
-            sdo : out std_logic;
-            sdi : in std_logic;
-            scl : out std_logic;
-            tx_byte : in std_logic_vector(9 downto 0);
+            cs_out : out std_logic;
+            sdo_out : out std_logic;
+            sdi_in : in std_logic;
+            scl_out : out std_logic;
+            tx_byte_in : in std_logic_vector(TX_SIZE - 1 downto 0);
             tx_en : in std_logic;
             tx_done : out std_logic
         );
@@ -51,34 +58,41 @@ architecture spi_ice40_arch of spi_ice40 is
     
 begin
 
+    tx_byte <= tx_data(tx_data_index);
+
     spi_instance: spi port map (
         clk => clk,
-        cs => spi_cs,
-        sdo => spi_sdo,
-        sdi => spi_sdi,
-        scl => spi_scl,
-        tx_byte => tx_byte,
+        cs_out => spi_cs,
+        sdo_out => spi_sdo,
+        sdi_in => spi_sdi,
+        scl_out => spi_scl,
+        tx_byte_in => tx_byte,
         tx_en => tx_en,
         tx_done => tx_done
     );
 
-    tx_byte <= tx_data(tx_data_index);
-
-    p_queue_tx: process (clk)
+    process(clk)
     begin
-
         if rising_edge(clk) then
-            if tx_done = '1' and tx_en /= '1' then
+            reset <= '0';
+        end if;
+    end process;
 
-                if tx_data_index < 17 then
-                    tx_data_index <= tx_data_index + 1;
-                    tx_en <= '1';
-                end if;
+    -- Queue TX: while the FIFO is not empty, enable SPI transmission
+    p_queue_tx: process (tx_done)
+    begin
+        
+        if rising_edge(tx_done) then
 
-            else 
+            if tx_data_index < NUM_DATA - 1 then
+                tx_data_index <= tx_data_index + 1;
+                tx_en <= '1';
+
+            else
+                tx_data_index <= 0;
                 tx_en <= '0';
             end if;
-
+        
         end if;
 
     end process;

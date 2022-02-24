@@ -3,124 +3,113 @@ use ieee.std_logic_1164.all;
 
 entity spi is
     generic(
-        TX_SIZE : integer := 10; -- 10 bit transfer size
-        CLK_DIV : integer := 150 -- 12MHz / 120 = 120 KHz SCK
+        TX_SIZE : natural := 10; -- 10 bit transfer size
+        CLK_DIV : natural := 150 -- 12MHz / 120 = 120 KHz SCK
     );
     port(
         clk : in std_logic;
-        cs : out std_logic;
-        sdo : out std_logic;
-        sdi : in std_logic;
-        scl : out std_logic;
-        tx_byte : in std_logic_vector(TX_SIZE - 1 downto 0);
+        cs_out : out std_logic;
+        sdo_out : out std_logic;
+        sdi_in : in std_logic;
+        scl_out : out std_logic;
+        tx_byte_in : in std_logic_vector(TX_SIZE - 1 downto 0);
         tx_en : in std_logic;
         tx_done : out std_logic
     );
 end spi;
 
 architecture spi_arch of spi is
-    type spi_status is (
-        IDLE, START_TX, DATA_TX, STOP_TX
-    );
+    type spi_state is (IDLE, START_TX, DATA_TX, STOP_TX);
+    signal state : spi_state := IDLE;
 
-    signal status : spi_status := IDLE;
-    signal bit_index : integer range 0 to TX_SIZE - 1 := 0;
     signal tx_data : std_logic_vector(TX_SIZE - 1 downto 0) := (others => '0');
-    signal serial_out : std_logic := '0';
-    signal chip_select : std_logic := '1';
-    signal done : std_logic := '0';
+    signal sdo : std_logic := '0';
+    signal cs : std_logic := '1';
+    signal done_slow_ff : std_logic := '1';
+    signal done_fast_ff : std_logic := '1';
+    signal bit_index : integer range 0 to TX_SIZE - 1 := 0;
 
-    signal r_scl : std_logic := '1';
-    signal scl_count : integer range 0 to CLK_DIV * 2 := 0;
-    signal scl_rise : std_logic := '0';
-    signal scl_fall : std_logic := '0';
+    signal internal_scl : std_logic := '1';
     
 begin
 
-    sdo <= serial_out;
-    cs <= chip_select;
-    tx_done <= done;
-    scl <= r_scl;
+    cs_out <= cs;
+    sdo_out <= sdo;
+    scl_out <= internal_scl when cs = '0' else '1';
 
-    -- SCL control
-    p_scl_ctrl: process(clk)
+    sdo <= tx_data(bit_index);
+
+    -- Internal SCL control: produce internal SCL clock which will be latched to outside SCL when a TX is occurring
+    p_internal_scl_ctrl: process(clk)
+        variable scl_count : integer range 0 to CLK_DIV - 1 := 0;
     begin
         if rising_edge(clk) then
             
-            -- SCL Falling edge
             if scl_count = CLK_DIV - 1 then
-                scl_count <= scl_count + 1;
-                scl_rise <= '0';
-                scl_fall <= '1';
-            -- SCL Rising edge
-            elsif scl_count = 2 * CLK_DIV - 1 then
-                scl_count <= 0;
-                scl_rise <= '1';
-                scl_fall <= '0';
-            else 
-                scl_rise <= '0';
-                scl_fall <= '0';
-                scl_count <= scl_count + 1;
+                scl_count := 0;
+                internal_scl <= not internal_scl;
+            else
+                scl_count := scl_count + 1;
             end if;
 
         end if;
 
     end process;
 
-    p_spi_tx: process(clk)
+    -- Translate done from slow SPI clk domain to high core clk domain via double flop
+    p_translate_done: process(clk)
     begin
         if rising_edge(clk) then
-            case status is
+            done_fast_ff <= done_slow_ff;
+            tx_done <= done_fast_ff;
+        end if;
+    end process;
+    
+    -- Handle TX: progresses through TX state machine
+    p_handle_tx: process(internal_scl)
+    begin
+        if falling_edge(internal_scl) then
 
-                -- Poll TX_EN until it is high, then transition to START_TX state
+            case state is
+
+                -- IDLE: Poll for TX requested
                 when IDLE =>
-                    chip_select <= '1';
-                    r_scl <= '1';
 
-                    -- Latch tx_byte to tx_data and flag done as low
+                    bit_index <= TX_SIZE - 1;
+
+                    -- Pull CS low and get first bit of data ready
                     if tx_en = '1' then
-                        done <= '0';
-                        status <= START_TX;
-                        tx_data <= tx_byte;
+                        done_slow_ff <= '0';
+                        cs <= '0';
+                        tx_data <= tx_byte_in;
+                        state <= DATA_TX;
+                    else
+                        done_slow_ff <= '1';
+                        cs <= '1';
+                        tx_data <= (others => '0');
+                        state <= IDLE;
                     end if;
-
-                -- After first rising edge of SCL, pull CS low and transition to DATA_TX state
-                when START_TX =>
-
-                    if scl_rise = '1' then
-                        chip_select <= '0';
-                        bit_index <= TX_SIZE - 1;
-                        status <= DATA_TX;
-                    end if;
-
-                -- Toggle SCL and latch TX data to TX line
+                
+                -- DATA_TX:
                 when DATA_TX =>
-                    if scl_fall = '1' then
-                        r_scl <= '0';
-                        
-                        serial_out <= tx_data(bit_index);
-
-                    elsif scl_rise = '1' then
-                        r_scl <= '1';
-                        
-                        if bit_index > 0 then
-                            bit_index <= bit_index - 1;
-                        else 
-                            status <= STOP_TX;
-                        end if;
+                    
+                    if bit_index > 0 then
+                        bit_index <= bit_index - 1;
+                    else
+                        state <= STOP_TX;
                     end if;
-
-                -- After what would be the last falling edge of SCL, 
-                -- pull TX line low, CS high, flag done, and transition to IDLE
+                
+                -- STOP_TX: 
                 when STOP_TX =>
+                    done_slow_ff <= '1';
+                    tx_data <= (others => '0');
+                    cs <= '1';
+                    state <= IDLE;
 
-                    if scl_fall = '1' then
-                        serial_out <= '0';
-                        done <= '1';
-                        chip_select <= '1';
-                        status <= IDLE;
-                    end if;
+                when others =>
+                        
             end case;
+        
         end if;
     end process;
 

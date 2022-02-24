@@ -6,7 +6,7 @@ FILES = spi_ice40.vhdl spi.vhdl
 ENTITY = spi_ice40
 TESTBENCH_FILE = spi_tb.vhdl
 TESTBENCH_ENTITY = spi_tb
-FLAGS = --std=08
+FLAGS = --std=08 -fsynopsys
 # Driver setup
 NODE = /dev/ttyACM0
 

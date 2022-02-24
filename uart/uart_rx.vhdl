@@ -36,7 +36,7 @@ architecture uart_rx_arch of uart_rx is
     
 begin
 
-    -- Generates baud generator (sampler) clock
+    -- Generates baud sampler clock
     p_oversampler_clk_generator: process(clk)
         variable oversampler_count: integer range 0 to (BAUD_OVERSAMPLER_TICKS - 1) := (BAUD_OVERSAMPLER_TICKS - 1);
     begin

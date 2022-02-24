@@ -31,3 +31,4 @@ set_io --warn-no-port spi_sdi F14
 set_io --warn-no-port spi_sdo G14
 set_io --warn-no-port spi_scl H12
 set_io --warn-no-port clk  	P7
+set_io --warn-no-port reset M10
