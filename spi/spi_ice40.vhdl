@@ -1,5 +1,6 @@
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 entity spi_ice40 is
     generic(
@@ -18,10 +19,14 @@ end spi_ice40;
 
 architecture spi_ice40_arch of spi_ice40 is
 
-    type data_array is array (0 to NUM_DATA - 1) of std_logic_vector(9 downto 0);
+    signal reset : std_logic := '1';
+
+    type data_array is array (0 to NUM_DATA - 1) of std_logic_vector(TX_SIZE - 1 downto 0);
 
     -- Displays Hello World on my SPI OLED display
-    signal tx_data : data_array := (
+    signal tx_byte : std_logic_vector(TX_SIZE - 1 downto 0) := (others => '0');
+    signal tx_data_index : integer range 0 to NUM_DATA - 1 := 0;
+    signal tx_data_array : data_array := (
         "0000111000", "0000001000", "0000000001", "0000000110", "0000000010", "0000001100", "0000000010", -- Initialization
         "1001001000", -- H 
         "1001100101", -- e
@@ -36,12 +41,9 @@ architecture spi_ice40_arch of spi_ice40 is
         "1001100100"  -- d
         );
 
-    signal tx_byte : std_logic_vector(TX_SIZE - 1 downto 0) := (others => '0');
-    signal tx_data_index : integer range 0 to NUM_DATA - 1 := 0;
-    signal tx_en : std_logic := '1';
+    signal tx_en : std_logic := '0';
     signal tx_done : std_logic;
 
-    signal reset : std_logic := '1';
 
     component spi is 
         port (
@@ -58,7 +60,7 @@ architecture spi_ice40_arch of spi_ice40 is
     
 begin
 
-    tx_byte <= tx_data(tx_data_index);
+    tx_byte <= tx_data_array(tx_data_index);
 
     spi_instance: spi port map (
         clk => clk,
@@ -71,25 +73,30 @@ begin
         tx_done => tx_done
     );
 
-    process(clk)
+    -- Reset: create an artificial reset before first rising edge of core clock
+    p_reset: process(clk)
     begin
         if rising_edge(clk) then
             reset <= '0';
         end if;
     end process;
 
-    -- Queue TX: while the FIFO is not empty, enable SPI transmission
+
+    -- Queue TX: queue packets for transmission until none left
     p_queue_tx: process (tx_done)
     begin
         
         if rising_edge(tx_done) then
 
-            if tx_data_index < NUM_DATA - 1 then
+            if reset = '1' then
+                tx_data_index <= 0;
+                tx_en <= '1';
+
+            elsif tx_data_index < NUM_DATA - 1 then
                 tx_data_index <= tx_data_index + 1;
                 tx_en <= '1';
 
             else
-                tx_data_index <= 0;
                 tx_en <= '0';
             end if;
         

@@ -19,7 +19,7 @@ entity spi is
 end spi;
 
 architecture spi_arch of spi is
-    type spi_state is (IDLE, START_TX, DATA_TX, STOP_TX);
+    type spi_state is (IDLE, START, DATA, STOP);
     signal state : spi_state := IDLE;
 
     signal tx_data : std_logic_vector(TX_SIZE - 1 downto 0) := (others => '0');
@@ -35,7 +35,7 @@ begin
 
     cs_out <= cs;
     sdo_out <= sdo;
-    scl_out <= internal_scl when cs = '0' else '1';
+    scl_out <= internal_scl when done_slow_ff = '0' else '1';
 
     sdo <= tx_data(bit_index);
 
@@ -75,36 +75,36 @@ begin
                 -- IDLE: Poll for TX requested
                 when IDLE =>
 
+                    tx_data <= (others => '0');
                     bit_index <= TX_SIZE - 1;
 
-                    -- Pull CS low and get first bit of data ready
+                    -- Pull CS low and transition to START state
                     if tx_en = '1' then
-                        done_slow_ff <= '0';
                         cs <= '0';
-                        tx_data <= tx_byte_in;
-                        state <= DATA_TX;
+                        state <= START;
                     else
-                        done_slow_ff <= '1';
                         cs <= '1';
-                        tx_data <= (others => '0');
                         state <= IDLE;
                     end if;
                 
-                -- DATA_TX:
-                when DATA_TX =>
+                -- START: 
+                when START =>
+                    done_slow_ff <= '0';
+                    tx_data <= tx_byte_in;
+                    state <= DATA;
+                
+                -- DATA:
+                when DATA =>
                     
                     if bit_index > 0 then
+                        cs <= '0';
                         bit_index <= bit_index - 1;
+                        done_slow_ff <= '0';
                     else
-                        state <= STOP_TX;
+                        cs <= '1';
+                        done_slow_ff <= '1';
+                        state <= IDLE;
                     end if;
-                
-                -- STOP_TX: 
-                when STOP_TX =>
-                    done_slow_ff <= '1';
-                    tx_data <= (others => '0');
-                    cs <= '1';
-                    state <= IDLE;
 
                 when others =>
                         

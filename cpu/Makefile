@@ -1,11 +1,11 @@
 # Makefile for ICE40 FPGA 
 
 # Project setup
-PROJ = spi
-FILES = spi_ice40.vhdl spi.vhdl
-ENTITY = spi_ice40
-TESTBENCH_FILE = spi_tb.vhdl
-TESTBENCH_ENTITY = spi_tb
+PROJ = cpu
+FILES = cpu_ice40.vhdl cpu.vhdl
+ENTITY = cpu_ice40
+TESTBENCH_FILE = cpu_tb.vhdl
+TESTBENCH_ENTITY = cpu_tb
 FLAGS = --std=08 -fsynopsys
 # Driver setup
 NODE = /dev/ttyACM0
@@ -25,7 +25,7 @@ all:
 sim:
 	ghdl -a $(FLAGS) $(TESTBENCH_FILE) $(FILES)
 	ghdl -e $(FLAGS) $(TESTBENCH_ENTITY)
-	ghdl -r $(FLAGS) $(TESTBENCH_ENTITY) --wave=wave.ghw --stop-time=10ms
+	ghdl -r $(FLAGS) $(TESTBENCH_ENTITY) --wave=wave.ghw --stop-time=5ms
 	gtkwave wave.ghw
 	
 # Push ice40 binary to FPGA connected via USB to NODE
