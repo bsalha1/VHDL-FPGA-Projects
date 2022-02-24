@@ -39,8 +39,9 @@ architecture uart_ice40_arch of uart_ice40 is
     component uart_tx is 
         port(
             clk : in std_logic;
-            tx : out std_logic;
-            tx_byte : in std_logic_vector(7 downto 0);
+            reset : in std_logic;
+            tx_out : out std_logic;
+            tx_byte_in : in std_logic_vector(7 downto 0);
             tx_done : out std_logic;
             request_tx : in std_logic
         );
@@ -77,8 +78,9 @@ begin
     -- UART TX
     uart_tx_instance : uart_tx port map (
         clk => clk,
-        tx => uart1_tx,
-        tx_byte => uart_tx_byte,
+        reset => reset,
+        tx_out => uart1_tx,
+        tx_byte_in => uart_tx_byte,
         tx_done => tx_done,
         request_tx => request_tx
     );
