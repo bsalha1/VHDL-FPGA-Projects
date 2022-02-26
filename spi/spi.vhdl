@@ -4,7 +4,7 @@ use ieee.std_logic_1164.all;
 entity spi is
     generic(
         TX_SIZE : natural := 10; -- 10 bit transfer size
-        CLK_DIV : natural := 150 -- 12MHz / 120 = 120 KHz SCK
+        CLK_DIV : natural := 150 -- 12MHz / (2 * 150) = 40 KHz SCK
     );
     port(
         clk : in std_logic;
@@ -19,11 +19,10 @@ entity spi is
 end spi;
 
 architecture spi_arch of spi is
-    type spi_state is (IDLE, START, DATA, STOP);
+    type spi_state is (IDLE, START, DATA);
     signal state : spi_state := IDLE;
 
     signal tx_data : std_logic_vector(TX_SIZE - 1 downto 0) := (others => '0');
-    signal sdo : std_logic := '0';
     signal cs : std_logic := '1';
     signal done_slow_ff : std_logic := '1';
     signal done_fast_ff : std_logic := '1';
@@ -34,10 +33,8 @@ architecture spi_arch of spi is
 begin
 
     cs_out <= cs;
-    sdo_out <= sdo;
+    sdo_out <= tx_data(bit_index);
     scl_out <= internal_scl when done_slow_ff = '0' else '1';
-
-    sdo <= tx_data(bit_index);
 
     -- Internal SCL control: produce internal SCL clock which will be latched to outside SCL when a TX is occurring
     p_internal_scl_ctrl: process(clk)
@@ -84,7 +81,6 @@ begin
                         state <= START;
                     else
                         cs <= '1';
-                        state <= IDLE;
                     end if;
                 
                 -- START: 
@@ -99,7 +95,6 @@ begin
                     if bit_index > 0 then
                         cs <= '0';
                         bit_index <= bit_index - 1;
-                        done_slow_ff <= '0';
                     else
                         cs <= '1';
                         done_slow_ff <= '1';
