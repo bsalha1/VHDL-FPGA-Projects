@@ -2,7 +2,7 @@
 
 # Project setup
 PROJ = processor
-FILES = processor.vhdl control_unit.vhdl instruction_rom.vhdl
+FILES = processor.vhdl instruction_rom.vhdl control_unit.vhdl alu.vhdl
 ENTITY = processor_ice40
 TESTBENCH_FILE = processor_tb.vhdl
 TESTBENCH_ENTITY = processor_tb
@@ -26,7 +26,7 @@ all:
 sim:
 	ghdl -a $(FLAGS) $(TESTBENCH_FILE) $(FILES)
 	ghdl -e $(FLAGS) $(TESTBENCH_ENTITY)
-	ghdl -r $(FLAGS) $(TESTBENCH_ENTITY) --wave=wave.ghw --stop-time=1us
+	ghdl -r $(FLAGS) $(TESTBENCH_ENTITY) --wave=wave.ghw --stop-time=5us
 	gtkwave wave.ghw
 	
 # Push ice40 binary to FPGA connected via USB to NODE

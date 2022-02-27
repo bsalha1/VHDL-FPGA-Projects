@@ -22,7 +22,7 @@ architecture instruction_rom_arch of instruction_rom is
     constant rom_data: rom_data_buffer :=(
         "0010000100000001", -- mov r1,1
         "0010000000000011", -- mov r0,3
-        "1011111100000000", -- ...
+        "0001110001000010", -- add r2,r0,1
         "1011111100000000",
 
         "1011111100000000",
